@@ -1,5 +1,13 @@
+#![warn(unused_doc_comments)]
+
 mod lex_tokens;
-use lex_tokens::LexToken;
+mod lexer;
+
+use lexer::Lexer;
+
 fn main() {
-    println!("Hello, world! Welcome to Toke DSL");
+    let source = "contract MyToken { supply 1000000 }";
+    let mut lexer = Lexer::new(source);
+    let tokens = lexer.tokenize().unwrap();
+    println!("{:?}", tokens);
 }
