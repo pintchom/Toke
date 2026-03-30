@@ -9,7 +9,6 @@
  * owner
  * decimals
  */
-#[derive(Debug)]
 pub enum LexTokenType {
     Contract, // token declaration: contract MyToken {...}
     Symbol,   // Symbol declaration: symbol "..."
@@ -30,7 +29,6 @@ pub enum LexTokenType {
 
     EOF,
 }
-#[derive(Debug)]
 pub struct LexToken {
     pub token_type: LexTokenType, // one of the above lexer items
     pub line: usize,              // line destination

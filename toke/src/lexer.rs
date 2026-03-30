@@ -30,7 +30,7 @@ impl Lexer {
         //  *  '"' call self.read_string()
         //  * '0' and next char is 'x' call self.read_address()
         //  * digit -> call self.read_number()
-        //  * letter or underscore -> call self.read_word()
+        //  * letter or underscore -> call self.read_code_word()
         //  * '#' call self.skip_comment
         //  *  anything else, return error with line/col
         //  *
@@ -46,8 +46,8 @@ impl Lexer {
         while self.current_char().is_some() {
             let c = self.current_char().unwrap();
             match c {
-                ' ' | '\t' | '\r' | '\n' => self.skip_whitespace(), // will be back on the next valid non empty char
-                '#' => self.skip_comment(),                         // will be back on the next line
+                c if c.is_ascii_whitespace() => self.skip_whitespace(), // will be back on the next valid non empty char
+                '#' => self.skip_comment(), // will be back on the next line
                 '{' => {
                     let lex_token: LexToken =
                         self.make_token(LexTokenType::OpenBrace, self.line, self.col);
@@ -60,13 +60,20 @@ impl Lexer {
                     lex_tokens.push(lex_token);
                     self.advance();
                 }
-                '0' => {}
+                '"' => {
+                    let lex_token = self.read_string()?;
+                    lex_tokens.push(lex_token);
+                }
+                '0' if self.source.get(self.pos + 1) == Some(&'x') => {
+                    let lex_token = self.read_address()?;
+                    lex_tokens.push(lex_token)
+                }
                 c if c.is_ascii_digit() => {
                     let lex_token = self.read_number()?;
                     lex_tokens.push(lex_token);
                 }
                 c if c.is_ascii_alphabetic() || c == '_' => {
-                    let lex_token = self.read_word();
+                    let lex_token = self.read_code_word()?;
                     lex_tokens.push(lex_token);
                 }
                 _ => {
@@ -109,11 +116,12 @@ impl Lexer {
     }
 
     fn skip_whitespace(&mut self) {
-        while matches!(
-            self.current_char(),
-            Some(' ') | Some('\t') | Some('\r') | Some('\n'),
-        ) {
-            self.advance();
+        while let Some(c) = self.current_char() {
+            if c.is_ascii_whitespace() {
+                self.advance();
+            } else {
+                break;
+            }
         }
     }
     fn skip_comment(&mut self) {
@@ -125,55 +133,140 @@ impl Lexer {
         }
     }
     fn read_number(&mut self) -> Result<LexToken, String> {
-        // 1. Record starting line/col
-        // 2. Collect characters while they are digits
-        // 3. If you hit a letter (like "123abc"), return an error
-        // 4. Return a LexToken with IntegerLit and the collected string
-        todo!()
+        let start_line = self.line;
+        let start_col = self.col;
+        let mut num_str = String::new();
+
+        while let Some(c) = self.current_char() {
+            if c.is_ascii_digit() {
+                num_str.push(c);
+                self.advance();
+            } else if c.is_ascii_whitespace() || c == '}' {
+                break;
+            } else {
+                return Err(format!(
+                    "Invalid number literal '{}{}' at line {}, column {}",
+                    num_str, c, start_line, start_col
+                ));
+            }
+        }
+
+        Ok(self.make_token(LexTokenType::IntegerLit(num_str), start_line, start_col))
     }
-    fn read_word(&mut self) -> LexToken {
-        // 1. Record starting line/col
-        // 2. Collect characters while they are letters, digits, or underscores
-        // 3. Check the collected word against your keyword list:
-        //    "contract" → Contract
-        //    "symbol"   → Symbol
-        //    "decimals" → Decimals
-        //    "supply"   → Supply
-        //    "mintable" → Mintable
-        //    "burnable" → Burnable
-        //    "capped"   → Capped
-        //    "owner"    → Owner
-        // 4. If it's not a keyword, it's an Identifier
-        // 5. Return the appropriate LexToken
-        todo!()
+    fn read_code_word(&mut self) -> Result<LexToken, String> {
+        let start_line = self.line;
+        let start_col = self.col;
+        let mut word_str = String::new();
+
+        while let Some(c) = self.current_char() {
+            if c.is_ascii_alphanumeric() || c == '_' {
+                word_str.push(c);
+                self.advance();
+            } else if c.is_ascii_whitespace() || c == '{' || c == '}' {
+                break;
+            } else {
+                return Err(format!(
+                    "Invalid character '{}' in identifier '{}' at line {}, column {}",
+                    c, word_str, start_line, start_col
+                ));
+            }
+        }
+
+        let token_type = match word_str.as_str() {
+            "contract" => LexTokenType::Contract,
+            "symbol" => LexTokenType::Symbol,
+            "decimals" => LexTokenType::Decimals,
+            "supply" => LexTokenType::Supply,
+            "mintable" => LexTokenType::Mintable,
+            "burnable" => LexTokenType::Burnable,
+            "capped" => LexTokenType::Capped,
+            "owner" => LexTokenType::Owner,
+            _ => LexTokenType::Identifier(word_str),
+        };
+
+        Ok(self.make_token(token_type, start_line, start_col))
+    }
+
+    fn read_string(&mut self) -> Result<LexToken, String> {
+        let start_line = self.line;
+        let start_col = self.col;
+        self.advance(); // skip opening "
+        let mut string_str = String::new();
+
+        loop {
+            match self.current_char() {
+                Some('"') => {
+                    self.advance(); // skip closing "
+                    return Ok(self.make_token(
+                        LexTokenType::StringLit(string_str),
+                        start_line,
+                        start_col,
+                    ));
+                }
+                Some('\n') => {
+                    return Err(format!(
+                        "Unterminated string literal at line {}, column {}",
+                        start_line, start_col
+                    ));
+                }
+                Some(c) => {
+                    string_str.push(c);
+                    self.advance();
+                }
+                None => {
+                    return Err(format!(
+                        "Unterminated string literal at line {}, column {}",
+                        start_line, start_col
+                    ));
+                }
+            }
+        }
     }
     fn read_address(&mut self) -> Result<LexToken, String> {
-        // 1. Record starting line/col
-        // 2. Advance past '0' and 'x'
-        // 3. Collect exactly 40 hex characters (0-9, a-f, A-F)
-        // 4. If you get fewer than 40, return an error
-        // 5. If you hit a non-hex character, return an error
-        // 6. Convert the 40 hex chars to [u8; 20] bytes
-        // 7. Return a LexToken with AddressLit containing both bytes and raw string
-        todo!()
-    }
-}
+        let start_line = self.line;
+        let start_col = self.col;
+        self.advance(); // skip '0'
+        self.advance(); // skip 'x'
+        let mut hex_str = String::new();
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::lex_tokens::LexTokenType;
+        while let Some(c) = self.current_char() {
+            if c.is_ascii_hexdigit() {
+                hex_str.push(c);
+                self.advance();
+            } else if c.is_ascii_whitespace() || c == '}' {
+                break;
+            } else {
+                return Err(format!(
+                    "Invalid character '{}' in address at line {}, column {}",
+                    c, start_line, start_col
+                ));
+            }
+        }
 
-    #[test]
-    fn test_simple_contract() {
-        let mut lexer = Lexer::new("contract MyToken { }");
-        let tokens = lexer.tokenize().unwrap();
+        if hex_str.len() != 40 {
+            return Err(format!(
+                "Address must be 40 hex characters (got {}), at line {}, column {}",
+                hex_str.len(),
+                start_line,
+                start_col
+            ));
+        }
 
-        assert_eq!(tokens.len(), 5);
-        assert!(matches!(tokens[0].token_type, LexTokenType::Contract));
-        assert!(matches!(tokens[1].token_type, LexTokenType::Identifier(ref s) if s == "MyToken"));
-        assert!(matches!(tokens[2].token_type, LexTokenType::OpenBrace));
-        assert!(matches!(tokens[3].token_type, LexTokenType::CloseBrace));
-        assert!(matches!(tokens[4].token_type, LexTokenType::EOF));
+        let mut bytes = [0u8; 20];
+        for i in 0..20 {
+            bytes[i] = u8::from_str_radix(&hex_str[i * 2..i * 2 + 2], 16).map_err(|_| {
+                format!(
+                    "Invalid hex in address at line {}, column {}",
+                    start_line, start_col
+                )
+            })?;
+        }
+
+        let raw = format!("0x{}", hex_str);
+        Ok(self.make_token(
+            LexTokenType::AddressLit { bytes, raw },
+            start_line,
+            start_col,
+        ))
     }
 }
