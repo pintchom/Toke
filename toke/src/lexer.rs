@@ -43,8 +43,7 @@ impl Lexer {
         //  * This is main entry point in determine valid syntax
 
         let mut lex_tokens: Vec<LexToken> = Vec::new();
-        while self.current_char().is_some() {
-            let c = self.current_char().unwrap();
+        while let Some(c) = self.current_char() {
             match c {
                 c if c.is_ascii_whitespace() => self.skip_whitespace(), // will be back on the next valid non empty char
                 '#' => self.skip_comment(), // will be back on the next line
