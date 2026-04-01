@@ -190,7 +190,7 @@ mod tests {
     #[test]
     fn test_decimals_not_18_warns() {
         let contract = ContractNode {
-            decimals: Some(int_field(6)),
+            decimals: Some(int_field(19)),
             ..base_contract()
         };
         let result = analyze(&contract);

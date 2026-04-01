@@ -73,9 +73,9 @@ fn check_capped_gte_supply(contract: &ContractNode, errors: &mut Vec<String>) {
 
 fn check_decimals_unusual(contract: &ContractNode, warnings: &mut Vec<String>) {
     if let Some(field) = &contract.decimals {
-        if field.value != 18 {
+        if field.value > 18 {
             warnings.push(format!(
-                "decimals is {} (expected 18) (line {}, col {})",
+                "decimals is {} (expected between 0 and 18) (line {}, col {})",
                 field.value, field.position.line, field.position.col
             ));
         }
@@ -84,9 +84,9 @@ fn check_decimals_unusual(contract: &ContractNode, warnings: &mut Vec<String>) {
 
 fn check_symbol_length(contract: &ContractNode, warnings: &mut Vec<String>) {
     if let Some(field) = &contract.symbol {
-        if field.value.len() > 5 {
+        if (field.value.len() > 5) || (field.value.len() < 1) {
             warnings.push(format!(
-                "symbol '{}' is longer than 5 characters (line {}, col {})",
+                "symbol '{}' must be between 1 and 5 characters (line {}, col {})",
                 field.value, field.position.line, field.position.col
             ));
         }
