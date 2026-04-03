@@ -1,9 +1,3 @@
-# Toke
-
-A domain-specific language that compiles declarative token definitions into EVM bytecode. Define an ERC-20 token in a few lines, get deployable bytecode — no Solidity required.
-
-## Example
-
 ### Milestone 1: Lexer + Tokens
 - [ ] Define all token types
 - [ ] Implement lexer with position tracking
