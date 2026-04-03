@@ -1,10 +1,11 @@
+use toke::errors::CompileError;
 use toke::lexer::Lexer;
 use toke::parser::Parser;
 
-fn parse(source: &str) -> Result<toke::ast::ContractNode, String> {
+fn parse(source: &str) -> Result<toke::ast::ContractNode, CompileError> {
     let mut lexer = Lexer::new(source);
     let tokens = lexer.tokenize()?;
-    let mut parser = Parser::new(tokens);
+    let mut parser = Parser::new(tokens, source);
     parser.parse()
 }
 
@@ -103,4 +104,45 @@ fn test_extra_content_after_contract() {
 fn test_comment_before_contract() {
     let contract = parse("# this is a comment\ncontract MyToken { }").unwrap();
     assert_eq!(contract.name, "MyToken");
+}
+
+// --- error structure ---
+
+#[test]
+fn test_parser_error_kind() {
+    let err = parse("MyToken { supply 100 }").unwrap_err();
+    assert_eq!(err.kind, toke::errors::ErrorKind::ParseError);
+}
+
+#[test]
+fn test_typo_suggests_correction() {
+    let err = parse("contract MyToken { supplly 100 }").unwrap_err();
+    assert!(err.suggestion.is_some());
+    assert!(err.suggestion.unwrap().contains("supply"));
+}
+
+#[test]
+fn test_unknown_field_no_suggestion() {
+    let err = parse("contract MyToken { foo 100 }").unwrap_err();
+    assert!(err.suggestion.is_none());
+}
+
+#[test]
+fn test_parser_error_source_line() {
+    let source = "contract MyToken {\n  supplly 100\n}";
+    let err = parse(source).unwrap_err();
+    assert_eq!(err.source_line, "  supplly 100");
+}
+
+#[test]
+fn test_duplicate_field_references_original_line() {
+    let source = "contract MyToken {\n  supply 100\n  supply 200\n}";
+    let err = parse(source).unwrap_err();
+    assert!(err.message.contains("already set on line"));
+}
+
+#[test]
+fn test_wrong_type_describes_actual() {
+    let err = parse(r#"contract MyToken { supply "notanumber" }"#).unwrap_err();
+    assert!(err.message.contains("string"));
 }

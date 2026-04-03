@@ -1,3 +1,4 @@
+use toke::errors::ErrorKind;
 use toke::lex_tokens::LexTokenType;
 use toke::lexer::Lexer;
 
@@ -85,4 +86,37 @@ fn test_short_address() {
     let mut lexer = Lexer::new("contract X { owner 0x1234 }");
     let result = lexer.tokenize();
     assert!(result.is_err());
+}
+
+// --- error structure ---
+
+#[test]
+fn test_lexer_error_kind() {
+    let mut lexer = Lexer::new("contract X { @ }");
+    let err = lexer.tokenize().unwrap_err();
+    assert_eq!(err.kind, ErrorKind::LexerError);
+}
+
+#[test]
+fn test_lexer_error_position() {
+    let mut lexer = Lexer::new("contract X { @ }");
+    let err = lexer.tokenize().unwrap_err();
+    assert_eq!(err.line, 1);
+    assert_eq!(err.col, 14);
+}
+
+#[test]
+fn test_lexer_error_source_line() {
+    let source = "contract X {\n  @ invalid\n}";
+    let mut lexer = Lexer::new(source);
+    let err = lexer.tokenize().unwrap_err();
+    assert_eq!(err.line, 2);
+    assert_eq!(err.source_line, "  @ invalid");
+}
+
+#[test]
+fn test_lexer_error_message_content() {
+    let mut lexer = Lexer::new("contract X { @ }");
+    let err = lexer.tokenize().unwrap_err();
+    assert!(err.message.contains("@"));
 }

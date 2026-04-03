@@ -2,6 +2,7 @@
 mod tests {
     use toke::analyzer::*;
     use toke::ast::*;
+    use toke::errors::ErrorKind;
 
     fn pos() -> Position {
         Position { line: 1, col: 1 }
@@ -17,13 +18,6 @@ mod tests {
     fn int_field(value: u64) -> IntField {
         IntField {
             value,
-            position: pos(),
-        }
-    }
-
-    fn addr_field() -> AddressField {
-        AddressField {
-            value: [0u8; 20],
             position: pos(),
         }
     }
@@ -55,8 +49,8 @@ mod tests {
             supply: None,
             ..base_contract()
         };
-        let result = analyze(&contract);
-        assert!(result.errors.iter().any(|e| e.contains("supply")));
+        let result = analyze(&contract, "");
+        assert!(result.errors.iter().any(|e| e.message.contains("supply")));
     }
 
     #[test]
@@ -65,14 +59,14 @@ mod tests {
             supply: Some(int_field(0)),
             ..base_contract()
         };
-        let result = analyze(&contract);
-        assert!(result.errors.iter().any(|e| e.contains("supply")));
+        let result = analyze(&contract, "");
+        assert!(result.errors.iter().any(|e| e.message.contains("Supply")));
     }
 
     #[test]
     fn test_supply_valid() {
-        let result = analyze(&base_contract());
-        assert!(result.errors.iter().all(|e| !e.contains("supply")));
+        let result = analyze(&base_contract(), "");
+        assert!(result.errors.iter().all(|e| !e.message.contains("supply")));
     }
 
     // --- check_decimals_range ---
@@ -83,8 +77,8 @@ mod tests {
             decimals: Some(int_field(78)),
             ..base_contract()
         };
-        let result = analyze(&contract);
-        assert!(result.errors.iter().any(|e| e.contains("decimals")));
+        let result = analyze(&contract, "");
+        assert!(result.errors.iter().any(|e| e.message.contains("Decimals")));
     }
 
     #[test]
@@ -93,8 +87,8 @@ mod tests {
             decimals: Some(int_field(77)),
             ..base_contract()
         };
-        let result = analyze(&contract);
-        assert!(result.errors.iter().all(|e| !e.contains("decimals")));
+        let result = analyze(&contract, "");
+        assert!(result.errors.iter().all(|e| !e.message.contains("decimals")));
     }
 
     #[test]
@@ -103,8 +97,8 @@ mod tests {
             decimals: Some(int_field(0)),
             ..base_contract()
         };
-        let result = analyze(&contract);
-        assert!(result.errors.iter().all(|e| !e.contains("decimals")));
+        let result = analyze(&contract, "");
+        assert!(result.errors.iter().all(|e| !e.message.contains("decimals")));
     }
 
     #[test]
@@ -113,7 +107,7 @@ mod tests {
             decimals: None,
             ..base_contract()
         };
-        let result = analyze(&contract);
+        let result = analyze(&contract, "");
         assert!(result.errors.is_empty());
     }
 
@@ -126,8 +120,8 @@ mod tests {
             mintable: None,
             ..base_contract()
         };
-        let result = analyze(&contract);
-        assert!(result.errors.iter().any(|e| e.contains("mintable")));
+        let result = analyze(&contract, "");
+        assert!(result.errors.iter().any(|e| e.message.contains("mintable")));
     }
 
     #[test]
@@ -137,14 +131,14 @@ mod tests {
             mintable: Some(flag_field()),
             ..base_contract()
         };
-        let result = analyze(&contract);
-        assert!(result.errors.iter().all(|e| !e.contains("mintable")));
+        let result = analyze(&contract, "");
+        assert!(result.errors.iter().all(|e| !e.message.contains("mintable")));
     }
 
     #[test]
     fn test_no_capped_no_mintable_ok() {
-        let result = analyze(&base_contract());
-        assert!(result.errors.iter().all(|e| !e.contains("mintable")));
+        let result = analyze(&base_contract(), "");
+        assert!(result.errors.iter().all(|e| !e.message.contains("mintable")));
     }
 
     // --- check_capped_gte_supply ---
@@ -157,8 +151,8 @@ mod tests {
             supply: Some(int_field(1000)),
             ..base_contract()
         };
-        let result = analyze(&contract);
-        assert!(result.errors.iter().any(|e| e.contains("capped")));
+        let result = analyze(&contract, "");
+        assert!(result.errors.iter().any(|e| e.message.contains("Cap")));
     }
 
     #[test]
@@ -169,8 +163,8 @@ mod tests {
             supply: Some(int_field(1000)),
             ..base_contract()
         };
-        let result = analyze(&contract);
-        assert!(result.errors.iter().all(|e| !e.contains("capped")));
+        let result = analyze(&contract, "");
+        assert!(result.errors.iter().all(|e| !e.message.contains("capped")));
     }
 
     #[test]
@@ -181,8 +175,8 @@ mod tests {
             supply: Some(int_field(1000)),
             ..base_contract()
         };
-        let result = analyze(&contract);
-        assert!(result.errors.iter().all(|e| !e.contains("capped")));
+        let result = analyze(&contract, "");
+        assert!(result.errors.iter().all(|e| !e.message.contains("capped")));
     }
 
     // --- check_decimals_unusual ---
@@ -193,14 +187,14 @@ mod tests {
             decimals: Some(int_field(19)),
             ..base_contract()
         };
-        let result = analyze(&contract);
-        assert!(result.warnings.iter().any(|w| w.contains("decimals")));
+        let result = analyze(&contract, "");
+        assert!(result.warnings.iter().any(|w| w.message.contains("Decimals")));
     }
 
     #[test]
     fn test_decimals_18_no_warning() {
-        let result = analyze(&base_contract());
-        assert!(result.warnings.iter().all(|w| !w.contains("decimals")));
+        let result = analyze(&base_contract(), "");
+        assert!(result.warnings.iter().all(|w| !w.message.contains("decimals")));
     }
 
     #[test]
@@ -209,8 +203,8 @@ mod tests {
             decimals: None,
             ..base_contract()
         };
-        let result = analyze(&contract);
-        assert!(result.warnings.iter().all(|w| !w.contains("decimals")));
+        let result = analyze(&contract, "");
+        assert!(result.warnings.iter().all(|w| !w.message.contains("decimals")));
     }
 
     // --- check_symbol_length ---
@@ -221,8 +215,8 @@ mod tests {
             symbol: Some(str_field("TOOLONG")),
             ..base_contract()
         };
-        let result = analyze(&contract);
-        assert!(result.warnings.iter().any(|w| w.contains("symbol")));
+        let result = analyze(&contract, "");
+        assert!(result.warnings.iter().any(|w| w.message.contains("Symbol")));
     }
 
     #[test]
@@ -231,8 +225,8 @@ mod tests {
             symbol: Some(str_field("USDC0")),
             ..base_contract()
         };
-        let result = analyze(&contract);
-        assert!(result.warnings.iter().all(|w| !w.contains("symbol")));
+        let result = analyze(&contract, "");
+        assert!(result.warnings.iter().all(|w| !w.message.contains("symbol")));
     }
 
     #[test]
@@ -241,15 +235,37 @@ mod tests {
             symbol: None,
             ..base_contract()
         };
-        let result = analyze(&contract);
-        assert!(result.warnings.iter().all(|w| !w.contains("symbol")));
+        let result = analyze(&contract, "");
+        assert!(result.warnings.iter().all(|w| !w.message.contains("symbol")));
+    }
+
+    // --- error kinds ---
+
+    #[test]
+    fn test_semantic_error_kind() {
+        let contract = ContractNode {
+            supply: None,
+            ..base_contract()
+        };
+        let result = analyze(&contract, "");
+        assert_eq!(result.errors[0].kind, ErrorKind::SemanticError);
+    }
+
+    #[test]
+    fn test_warning_kind() {
+        let contract = ContractNode {
+            decimals: Some(int_field(19)),
+            ..base_contract()
+        };
+        let result = analyze(&contract, "");
+        assert_eq!(result.warnings[0].kind, ErrorKind::Warning);
     }
 
     // --- combined ---
 
     #[test]
     fn test_valid_contract_no_errors_or_warnings() {
-        let result = analyze(&base_contract());
+        let result = analyze(&base_contract(), "");
         assert!(result.errors.is_empty());
         assert!(result.warnings.is_empty());
     }
