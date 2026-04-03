@@ -1,24 +1,25 @@
 use crate::ast::{AddressField, ContractNode, FlagField, IntField, Position, StringField};
+use crate::errors::{get_source_line, suggest_closest, CompileError};
 use crate::lex_tokens::{LexToken, LexTokenType};
 
 pub struct Parser {
     tokens: Vec<LexToken>,
     pos: usize,
+    source: String,
 }
 
 impl Parser {
-    pub fn new(tokens: Vec<LexToken>) -> Self {
-        Self { tokens, pos: 0 }
+    pub fn new(tokens: Vec<LexToken>, source: &str) -> Self {
+        Self {
+            tokens,
+            pos: 0,
+            source: source.to_string(),
+        }
     }
 
-    pub fn parse(&mut self) -> Result<ContractNode, String> {
-        //confirm that we start with -- contract ....
+    pub fn parse(&mut self) -> Result<ContractNode, CompileError> {
         self.expect("contract")?;
-
-        //expect identifier (contract name) -- contract xxx ...
         let (name, name_position) = self.expect_identifier()?;
-
-        //expect open brace -- contract xxx { ...
         self.expect("{")?;
 
         let mut contract = ContractNode {
@@ -33,76 +34,66 @@ impl Parser {
             owner: None,
         };
 
-        //parse fields until CloseBrace
         self.parse_fields(&mut contract)?;
-
         self.expect("}")?;
         self.expect("EOF")?;
 
         Ok(contract)
     }
 
-    fn parse_fields(&mut self, contract: &mut ContractNode) -> Result<(), String> {
-        // Loop until CloseBrace or EOF
-        // Match current token:
-        //   Supply   → expect IntegerLit, set contract.supply
-        //   Symbol   → expect StringLit, set contract.symbol
-        //   Decimals → expect IntegerLit, set contract.decimals
-        //   Capped   → expect IntegerLit, set contract.capped
-        //   Owner    → expect AddressLit, set contract.owner
-        //   CloseBrace → break
-        //   other    → error "Unknown field"
-        //
-        // Check for duplicates before setting any field
-
+    fn parse_fields(&mut self, contract: &mut ContractNode) -> Result<(), CompileError> {
         while !matches!(self.current().token_type, LexTokenType::CloseBrace) {
             match &self.current().token_type {
                 LexTokenType::Supply => {
-                    if contract.supply.is_some() {
-                        return Err(format!(
-                            "Duplicate 'supply' at line {}, column {}",
+                    if let Some(ref existing) = contract.supply {
+                        return Err(CompileError::parse(
+                            format!(
+                                "Duplicate 'supply' declaration — already set on line {}",
+                                existing.position.line
+                            ),
                             self.current().line,
-                            self.current().col
+                            self.current().col,
+                            self.source_line(self.current().line),
                         ));
                     }
-                    let position = Position {
-                        line: self.current().line,
-                        col: self.current().col,
-                    };
+                    let position = self.current_position();
                     self.advance();
                     match &self.current().token_type {
                         LexTokenType::IntegerLit(val) => {
                             let value = val.parse::<u64>().map_err(|_| {
-                                format!(
-                                    "Invalid supply value at line {}, column {}",
+                                CompileError::parse(
+                                    format!("Invalid supply value '{}'", val),
                                     self.current().line,
-                                    self.current().col
+                                    self.current().col,
+                                    self.source_line(self.current().line),
                                 )
                             })?;
                             contract.supply = Some(IntField { value, position });
                             self.advance();
                         }
-                        _ => {
-                            return Err(format!(
-                                "Expected type number after 'supply' at line {}, column {}",
+                        other => {
+                            return Err(CompileError::parse(
+                                format!("'supply' expects a number, got {}", describe_token(other)),
                                 self.current().line,
-                                self.current().col
+                                self.current().col,
+                                self.source_line(self.current().line),
                             ));
                         }
                     }
                 }
                 LexTokenType::Symbol => {
-                    if contract.symbol.is_some() {
-                        return Err(format!(
-                            "Duplicate 'symbol' at line {}, column {}",
+                    if let Some(ref existing) = contract.symbol {
+                        return Err(CompileError::parse(
+                            format!(
+                                "Duplicate 'symbol' declaration — already set on line {}",
+                                existing.position.line
+                            ),
                             self.current().line,
-                            self.current().col
+                            self.current().col,
+                            self.source_line(self.current().line),
                         ));
                     }
-                    let position = Position {
-                        line: self.current().line,
-                        col: self.current().col,
-                    };
+                    let position = self.current_position();
                     self.advance();
                     match &self.current().token_type {
                         LexTokenType::StringLit(val) => {
@@ -112,125 +103,146 @@ impl Parser {
                             });
                             self.advance();
                         }
-                        _ => {
-                            return Err(format!(
-                                "Expected string literal at line {}, column {}",
+                        other => {
+                            return Err(CompileError::parse(
+                                format!(
+                                    "'symbol' expects a string, got {}",
+                                    describe_token(other)
+                                ),
                                 self.current().line,
-                                self.current().col
+                                self.current().col,
+                                self.source_line(self.current().line),
                             ));
                         }
                     }
                 }
                 LexTokenType::Decimals => {
-                    if contract.decimals.is_some() {
-                        return Err(format!(
-                            "Duplicate 'decimals' at line {}, column {}",
+                    if let Some(ref existing) = contract.decimals {
+                        return Err(CompileError::parse(
+                            format!(
+                                "Duplicate 'decimals' declaration — already set on line {}",
+                                existing.position.line
+                            ),
                             self.current().line,
-                            self.current().col
+                            self.current().col,
+                            self.source_line(self.current().line),
                         ));
                     }
-                    let position = Position {
-                        line: self.current().line,
-                        col: self.current().col,
-                    };
+                    let position = self.current_position();
                     self.advance();
                     match &self.current().token_type {
                         LexTokenType::IntegerLit(val) => {
                             let value = val.parse::<u64>().map_err(|_| {
-                                format!(
-                                    "Invalid decimals value at line {}, column {}",
+                                CompileError::parse(
+                                    format!("Invalid decimals value '{}'", val),
                                     self.current().line,
-                                    self.current().col
+                                    self.current().col,
+                                    self.source_line(self.current().line),
                                 )
                             })?;
                             contract.decimals = Some(IntField { value, position });
                             self.advance();
                         }
-                        _ => {
-                            return Err(format!(
-                                "Expected number after 'decimals' at line {}, column {}",
+                        other => {
+                            return Err(CompileError::parse(
+                                format!(
+                                    "'decimals' expects a number, got {}",
+                                    describe_token(other)
+                                ),
                                 self.current().line,
-                                self.current().col
+                                self.current().col,
+                                self.source_line(self.current().line),
                             ));
                         }
                     }
                 }
                 LexTokenType::Mintable => {
-                    if contract.mintable.is_some() {
-                        return Err(format!(
-                            "Duplicate 'mintable' at line {}, column {}",
+                    if let Some(ref existing) = contract.mintable {
+                        return Err(CompileError::parse(
+                            format!(
+                                "Duplicate 'mintable' declaration — already set on line {}",
+                                existing.position.line
+                            ),
                             self.current().line,
-                            self.current().col
+                            self.current().col,
+                            self.source_line(self.current().line),
                         ));
                     }
-                    let position = Position {
-                        line: self.current().line,
-                        col: self.current().col,
-                    };
-                    contract.mintable = Some(FlagField { position });
+                    contract.mintable = Some(FlagField {
+                        position: self.current_position(),
+                    });
                     self.advance();
                 }
                 LexTokenType::Burnable => {
-                    if contract.burnable.is_some() {
-                        return Err(format!(
-                            "Duplicate 'burnable' at line {}, column {}",
+                    if let Some(ref existing) = contract.burnable {
+                        return Err(CompileError::parse(
+                            format!(
+                                "Duplicate 'burnable' declaration — already set on line {}",
+                                existing.position.line
+                            ),
                             self.current().line,
-                            self.current().col
+                            self.current().col,
+                            self.source_line(self.current().line),
                         ));
                     }
-                    let position = Position {
-                        line: self.current().line,
-                        col: self.current().col,
-                    };
-                    contract.burnable = Some(FlagField { position });
+                    contract.burnable = Some(FlagField {
+                        position: self.current_position(),
+                    });
                     self.advance();
                 }
                 LexTokenType::Capped => {
-                    if contract.capped.is_some() {
-                        return Err(format!(
-                            "Duplicate 'capped' at line {}, column {}",
+                    if let Some(ref existing) = contract.capped {
+                        return Err(CompileError::parse(
+                            format!(
+                                "Duplicate 'capped' declaration — already set on line {}",
+                                existing.position.line
+                            ),
                             self.current().line,
-                            self.current().col
+                            self.current().col,
+                            self.source_line(self.current().line),
                         ));
                     }
-                    let position = Position {
-                        line: self.current().line,
-                        col: self.current().col,
-                    };
+                    let position = self.current_position();
                     self.advance();
                     match &self.current().token_type {
                         LexTokenType::IntegerLit(val) => {
                             let value = val.parse::<u64>().map_err(|_| {
-                                format!(
-                                    "Invalid capped value at line {}, column {}",
+                                CompileError::parse(
+                                    format!("Invalid capped value '{}'", val),
                                     self.current().line,
-                                    self.current().col
+                                    self.current().col,
+                                    self.source_line(self.current().line),
                                 )
                             })?;
                             contract.capped = Some(IntField { value, position });
                             self.advance();
                         }
-                        _ => {
-                            return Err(format!(
-                                "Expected number after 'capped' at line {}, column {}",
+                        other => {
+                            return Err(CompileError::parse(
+                                format!(
+                                    "'capped' expects a number, got {}",
+                                    describe_token(other)
+                                ),
                                 self.current().line,
-                                self.current().col
+                                self.current().col,
+                                self.source_line(self.current().line),
                             ));
                         }
                     }
                 }
                 LexTokenType::Owner => {
-                    if contract.owner.is_some() {
-                        return Err(format!(
-                            "Duplicate 'owner' at line {}, column {}",
+                    if let Some(ref existing) = contract.owner {
+                        return Err(CompileError::parse(
+                            format!(
+                                "Duplicate 'owner' declaration — already set on line {}",
+                                existing.position.line
+                            ),
                             self.current().line,
-                            self.current().col
+                            self.current().col,
+                            self.source_line(self.current().line),
                         ));
                     }
-                    let position = Position {
-                        line: self.current().line,
-                        col: self.current().col,
-                    };
+                    let position = self.current_position();
                     self.advance();
                     match &self.current().token_type {
                         LexTokenType::AddressLit { bytes, .. } => {
@@ -240,33 +252,65 @@ impl Parser {
                             });
                             self.advance();
                         }
-                        _ => {
-                            return Err(format!(
-                                "Expected address after 'owner' at line {}, column {}",
+                        other => {
+                            return Err(CompileError::parse(
+                                format!(
+                                    "'owner' expects an address, got {}",
+                                    describe_token(other)
+                                ),
                                 self.current().line,
-                                self.current().col
+                                self.current().col,
+                                self.source_line(self.current().line),
                             ));
                         }
                     }
                 }
-                LexTokenType::CloseBrace => break,
-                LexTokenType::EOF => {
-                    return Err(format!(
-                        "Expected '}}' to close contract block at line {}, column {}",
+                LexTokenType::Identifier(word) => {
+                    let word = word.clone();
+                    let err = CompileError::parse(
+                        format!("Unknown field '{}'", word),
                         self.current().line,
-                        self.current().col
+                        self.current().col,
+                        self.source_line(self.current().line),
+                    );
+                    return Err(match suggest_closest(&word, LexTokenType::FIELD_KEYWORDS, 3) {
+                        Some(suggestion) => {
+                            err.with_suggestion(format!("Did you mean '{}'?", suggestion))
+                        }
+                        None => err,
+                    });
+                }
+                LexTokenType::EOF => {
+                    return Err(CompileError::parse(
+                        "Expected '}' to close contract block",
+                        self.current().line,
+                        self.current().col,
+                        self.source_line(self.current().line),
                     ));
                 }
                 _ => {
-                    return Err(format!(
-                        "Unknown field at line {}, column {}",
+                    let desc = describe_token(&self.current().token_type);
+                    return Err(CompileError::parse(
+                        format!("Unexpected token {}", desc),
                         self.current().line,
-                        self.current().col
+                        self.current().col,
+                        self.source_line(self.current().line),
                     ));
                 }
             }
         }
         Ok(())
+    }
+
+    fn source_line(&self, line: usize) -> String {
+        get_source_line(&self.source, line)
+    }
+
+    fn current_position(&self) -> Position {
+        Position {
+            line: self.current().line,
+            col: self.current().col,
+        }
     }
 
     fn current(&self) -> &LexToken {
@@ -279,7 +323,7 @@ impl Parser {
         token
     }
 
-    fn expect(&mut self, expected: &str) -> Result<&LexToken, String> {
+    fn expect(&mut self, expected: &str) -> Result<&LexToken, CompileError> {
         let matches = match expected {
             "contract" => matches!(self.current().token_type, LexTokenType::Contract),
             "{" => matches!(self.current().token_type, LexTokenType::OpenBrace),
@@ -289,17 +333,25 @@ impl Parser {
         };
 
         if !matches {
-            return Err(format!(
-                "Expected '{}' at line {}, column {}",
-                expected,
+            let message = match expected {
+                "contract" => "Expected 'contract' keyword".to_string(),
+                "{" => "Expected '{' after contract name".to_string(),
+                "}" => "Expected '}' to close contract block".to_string(),
+                "EOF" => "Unexpected content after contract block".to_string(),
+                _ => format!("Expected '{}'", expected),
+            };
+            return Err(CompileError::parse(
+                message,
                 self.current().line,
-                self.current().col
+                self.current().col,
+                self.source_line(self.current().line),
             ));
         }
 
         Ok(self.advance())
     }
-    fn expect_identifier(&mut self) -> Result<(String, Position), String> {
+
+    fn expect_identifier(&mut self) -> Result<(String, Position), CompileError> {
         match &self.current().token_type {
             LexTokenType::Identifier(s) => {
                 let result = (
@@ -312,11 +364,32 @@ impl Parser {
                 self.advance();
                 Ok(result)
             }
-            _ => Err(format!(
-                "Expected identifier at line {}, column {}",
+            _ => Err(CompileError::parse(
+                "Missing contract name after 'contract'",
                 self.current().line,
-                self.current().col
+                self.current().col,
+                self.source_line(self.current().line),
             )),
         }
+    }
+}
+
+fn describe_token(token: &LexTokenType) -> String {
+    match token {
+        LexTokenType::StringLit(s) => format!("string \"{}\"", s),
+        LexTokenType::IntegerLit(s) => format!("number {}", s),
+        LexTokenType::AddressLit { raw, .. } => format!("address {}", raw),
+        LexTokenType::Identifier(s) => format!("identifier '{}'", s),
+        LexTokenType::OpenBrace => "'{'".to_string(),
+        LexTokenType::CloseBrace => "'}'".to_string(),
+        LexTokenType::Contract => "keyword 'contract'".to_string(),
+        LexTokenType::Symbol => "keyword 'symbol'".to_string(),
+        LexTokenType::Decimals => "keyword 'decimals'".to_string(),
+        LexTokenType::Supply => "keyword 'supply'".to_string(),
+        LexTokenType::Mintable => "keyword 'mintable'".to_string(),
+        LexTokenType::Burnable => "keyword 'burnable'".to_string(),
+        LexTokenType::Capped => "keyword 'capped'".to_string(),
+        LexTokenType::Owner => "keyword 'owner'".to_string(),
+        LexTokenType::EOF => "end of file".to_string(),
     }
 }

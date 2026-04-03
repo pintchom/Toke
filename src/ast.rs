@@ -1,27 +1,33 @@
+#[derive(Debug, Clone, PartialEq)]
 pub struct Position {
     pub line: usize,
     pub col: usize,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct StringField {
     pub value: String,
     pub position: Position,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct IntField {
     pub value: u64,
     pub position: Position,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct AddressField {
     pub value: [u8; 20],
     pub position: Position,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct FlagField {
     pub position: Position,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct ContractNode {
     pub name: String,
     pub name_position: Position,

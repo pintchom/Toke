@@ -1,14 +1,4 @@
-/**
- * Token Declaration info
- * name
- * supply
- * symbol
- * mintable
- * burnable
- * capped
- * owner
- * decimals
- */
+#[derive(Debug, Clone, PartialEq)]
 pub enum LexTokenType {
     Contract, // token declaration: contract MyToken {...}
     Symbol,   // Symbol declaration: symbol "..."
@@ -21,7 +11,7 @@ pub enum LexTokenType {
 
     Identifier(String), // identifier assignments: MyToken
     StringLit(String),  // string assignments: "asd"
-    IntegerLit(String), //
+    IntegerLit(String), 
     AddressLit { bytes: [u8; 20], raw: String },
 
     OpenBrace,
@@ -29,6 +19,14 @@ pub enum LexTokenType {
 
     EOF,
 }
+
+impl LexTokenType {
+    pub const FIELD_KEYWORDS: &[&str] = &[
+        "symbol", "decimals", "supply", "mintable", "burnable", "capped", "owner",
+    ];
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct LexToken {
     pub token_type: LexTokenType, // one of the above lexer items
     pub line: usize,              // line destination
