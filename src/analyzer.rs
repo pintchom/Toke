@@ -9,8 +9,6 @@ pub fn analyze(contract: &ContractNode) -> AnalyzerResult {
     let mut errors = Vec::new();
     let mut warnings = Vec::new();
 
-    println!("Analyzing contract {}...", &contract.name);
-
     // supply present and positive required
     check_supply(contract, &mut errors);
 

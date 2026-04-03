@@ -21,13 +21,6 @@ mod tests {
         }
     }
 
-    fn addr_field() -> AddressField {
-        AddressField {
-            value: [0u8; 20],
-            position: pos(),
-        }
-    }
-
     fn flag_field() -> FlagField {
         FlagField { position: pos() }
     }
