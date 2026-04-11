@@ -4,10 +4,11 @@ use crate::errors::CompileError;
 
 use super::opcodes;
 
+#[allow(dead_code)] // temporary for width prop
 struct PendingJump {
     position: usize,
     target_label: String,
-    width: usize,
+    width: usize, // unused for now since wehandle static 2 byte offsets
 }
 
 /// Pass 1: emit bytecode with placeholder zeros for jump targets, recording

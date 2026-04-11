@@ -33,7 +33,7 @@ fn emit_selector_check(emitter: &mut Emitter, signature: &str, label: &str) {
 
     emitter.emit(opcodes::DUP1);
     emitter.emit(opcodes::PUSH4);
-    emitter.emit_bytes(&sel);
+    emitter.emit_bytes(sel.as_slice());
     emitter.emit(opcodes::EQ);
     emitter.emit_jumpi_to(label);
 }
