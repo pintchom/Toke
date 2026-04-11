@@ -2,5 +2,11 @@
 name = "toke"
 version = "0.1.0"
 edition = "2024"
+description = "A DSL that compiles to ERC-20 EVM bytecode"
 
 [dependencies]
+tiny-keccak = { version = "2", features = ["keccak"] }
+hex = "0.4"
+
+[dev-dependencies]
+revm = "36" # requires rustc >= 1.88, re-enable after upgrade
