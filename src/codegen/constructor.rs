@@ -14,17 +14,21 @@ use super::utils::{event_topic, push_u64, push_value};
 /// `runtime_len` is the length of the runtime bytecode that follows the constructor.
 pub fn emit_constructor(contract: &ContractNode, runtime_len: usize) -> Vec<u8> {
     let mut code = Vec::new();
-    let supply = contract
+    let raw_supply = contract
         .supply
         .as_ref()
         .expect("supply validated by analyzer")
         .value;
+    let decimals = contract.decimals.as_ref().map(|d| d.value).unwrap_or(18);
 
-    // start with recording total supply
-    // Stack: [supply, 0] → SSTORE
-    // pushing total supply value and slot 0 onto the stack, then SSTORE it
-    // post reployment, anyone calling totalSupply() reads this slot
-    push_u64(&mut code, supply);
+    // Scale supply by 10^decimals so `supply 5000000` means 5 million whole tokens.
+    // This can overflow u64, so we use u128 and encode as big-endian bytes.
+    let scaled_supply = (raw_supply as u128) * 10u128.pow(decimals as u32);
+    let supply_bytes = scaled_supply.to_be_bytes();
+    let first_nonzero = supply_bytes.iter().position(|&b| b != 0).unwrap_or(15);
+    let supply_trimmed = &supply_bytes[first_nonzero..];
+
+    push_value(&mut code, supply_trimmed);
     code.push(opcodes::PUSH1);
     code.push(0x00);
     code.push(opcodes::SSTORE);
@@ -57,13 +61,13 @@ pub fn emit_constructor(contract: &ContractNode, runtime_len: usize) -> Vec<u8> 
     code.push(opcodes::SHA3);
 
     // SSTORE(mapping_slot, supply)
-    push_u64(&mut code, supply);
+    push_value(&mut code, supply_trimmed);
     code.push(opcodes::SWAP1);
     code.push(opcodes::SSTORE);
 
     // --- Emit Transfer(address(0), msg.sender, supply) event ---
     // Store supply in memory[0x00] as the event data (non-indexed)
-    push_u64(&mut code, supply);
+    push_value(&mut code, supply_trimmed);
     code.push(opcodes::PUSH1);
     code.push(0x00);
     code.push(opcodes::MSTORE);
