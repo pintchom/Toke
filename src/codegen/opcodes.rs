@@ -60,6 +60,7 @@ pub const SWAP1: u8 = 0x90;
 
 // Logging
 pub const LOG1: u8 = 0xa1;
+pub const LOG3: u8 = 0xa3;
 
 // System
 pub const RETURN: u8 = 0xf3;

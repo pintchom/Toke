@@ -2,7 +2,9 @@ use crate::ast::ContractNode;
 
 use super::emitter::Emitter;
 use super::opcodes;
-use super::utils::push_value;
+use super::utils::{event_topic, push_value};
+
+const TRANSFER_TOPIC: &str = "Transfer(address,address,uint256)";
 
 pub fn emit_name(emitter: &mut Emitter, contract: &ContractNode) {
     emitter.emit_label("name");
@@ -299,6 +301,26 @@ pub fn emit_transfer_from(emitter: &mut Emitter) {
     emitter.emit(opcodes::SSTORE);
     // stack: [to, from, amount]
 
+    // Emit Transfer(from, to, amount) event
+    // stack: [to, from, amount]
+    emitter.emit(opcodes::DUP3); // [amount, to, from, amount]
+    emitter.emit(opcodes::PUSH1);
+    emitter.emit(0x00);
+    emitter.emit(opcodes::MSTORE); // memory[0x00] = amount
+
+    // LOG3: push topic2, topic1, topic0, size, offset
+    emitter.emit(opcodes::DUP1); // [to, to, from, amount] — topic2
+    emitter.emit(opcodes::DUP3); // [from, to, to, from, amount] — topic1
+    let topic = event_topic(TRANSFER_TOPIC);
+    emitter.emit(opcodes::PUSH32);
+    emitter.emit_bytes(&topic); // topic0
+    emitter.emit(opcodes::PUSH1);
+    emitter.emit(0x20); // size
+    emitter.emit(opcodes::PUSH1);
+    emitter.emit(0x00); // offset
+    emitter.emit(opcodes::LOG3);
+    // stack: [to, from, amount]
+
     emitter.emit(opcodes::POP);
     emitter.emit(opcodes::POP);
     emitter.emit(opcodes::POP);
@@ -445,23 +467,41 @@ pub fn emit_transfer(emitter: &mut Emitter) {
     emitter.emit(opcodes::SSTORE);
     // stack: [to, amount]
 
-    // clean up stack and return true (1)
+    // Emit Transfer(caller, to, amount) event
+    // stack: [to, amount]
+    emitter.emit(opcodes::DUP2); // [amount, to, amount]
+    emitter.emit(opcodes::PUSH1);
+    emitter.emit(0x00);
+    emitter.emit(opcodes::MSTORE); // memory[0x00] = amount
+
+    // LOG3: push topic2, topic1, topic0, size, offset
+    emitter.emit(opcodes::DUP1); // [to, to, amount] — topic2
+    emitter.emit(opcodes::CALLER); // [caller, to, to, amount] — topic1
+    let topic = event_topic(TRANSFER_TOPIC);
+    emitter.emit(opcodes::PUSH32);
+    emitter.emit_bytes(&topic); // topic0
+    emitter.emit(opcodes::PUSH1);
+    emitter.emit(0x20); // size
+    emitter.emit(opcodes::PUSH1);
+    emitter.emit(0x00); // offset
+    emitter.emit(opcodes::LOG3);
+    // stack: [to, amount]
+
     emitter.emit(opcodes::POP);
     emitter.emit(opcodes::POP);
 
+    // Return true
     emitter.emit(opcodes::PUSH1);
     emitter.emit(0x01);
     emitter.emit(opcodes::PUSH1);
     emitter.emit(0x00);
     emitter.emit(opcodes::MSTORE);
-
     emitter.emit(opcodes::PUSH1);
     emitter.emit(0x20);
     emitter.emit(opcodes::PUSH1);
     emitter.emit(0x00);
     emitter.emit(opcodes::RETURN);
 
-    // revert path for insufficient balance
     emitter.emit_label("revert_transfer");
     emitter.emit(opcodes::PUSH1);
     emitter.emit(0x00);
