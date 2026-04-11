@@ -1,15 +1,39 @@
 use crate::ast::ContractNode;
 
 use super::emitter::Emitter;
+use super::opcodes;
+use super::utils::selector;
 
-/// Emit the function dispatcher into the emitter.
-///
-/// The dispatcher is the entry point of the runtime bytecode. It:
-/// 1. Reads the first 4 bytes of calldata (the function selector)
-/// 2. Compares against each known selector (totalSupply, balanceOf, etc.)
-/// 3. Jumps to the matching handler label
-/// 4. If no selector matches, falls through to REVERT (fallback)
-pub fn emit_dispatcher(emitter: &mut Emitter, contract: &ContractNode) {
-    let _ = (emitter, contract);
-    todo!("Function dispatcher generation")
+pub fn emit_dispatcher(emitter: &mut Emitter, _contract: &ContractNode) {
+    // Extract the 4-byte function selector from calldata.
+    // CALLDATALOAD(0) loads 32 bytes starting at offset 0, then
+    // SHR(224) right-shifts by 224 bits to isolate the top 4 bytes.
+    emitter.emit(opcodes::PUSH1);
+    emitter.emit(0x00);
+    emitter.emit(opcodes::CALLDATALOAD); // loads 32 bytes starting at offset 0
+    emitter.emit(opcodes::PUSH1);
+    emitter.emit(0xe0); // 224 bit shift (224 + 32  = 256)
+    emitter.emit(opcodes::SHR);
+
+    // Compare against each known selector and jump if matched.
+    emit_selector_check(emitter, "totalSupply()", "totalSupply");
+    emit_selector_check(emitter, "balanceOf(address)", "balanceOf");
+
+    // Fallback: no selector matched → revert
+    emitter.emit(opcodes::PUSH1);
+    emitter.emit(0x00);
+    emitter.emit(opcodes::PUSH1);
+    emitter.emit(0x00);
+    emitter.emit(opcodes::REVERT);
+}
+
+/// Emit a single selector comparison: DUP1, PUSH4 <selector>, EQ, PUSH2 <label>, JUMPI
+fn emit_selector_check(emitter: &mut Emitter, signature: &str, label: &str) {
+    let sel = selector(signature);
+
+    emitter.emit(opcodes::DUP1);
+    emitter.emit(opcodes::PUSH4);
+    emitter.emit_bytes(&sel);
+    emitter.emit(opcodes::EQ);
+    emitter.emit_jumpi_to(label);
 }
