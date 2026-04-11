@@ -14,6 +14,7 @@ pub fn generate(contract: &ContractNode) -> Result<Vec<u8>, CompileError> {
     dispatcher::emit_dispatcher(&mut emitter, contract);
     functions::emit_total_supply(&mut emitter);
     functions::emit_balance_of(&mut emitter);
+    functions::emit_transfer(&mut emitter);
 
     // patch all forward jump placeholders with real offsets
     emitter.resolve()?;
