@@ -50,6 +50,9 @@ pub const PUSH32: u8 = 0x7f;
 // Duplication
 pub const DUP1: u8 = 0x80;
 pub const DUP2: u8 = 0x81;
+pub const DUP3: u8 = 0x82;
+pub const DUP4: u8 = 0x83;
+pub const DUP5: u8 = 0x84;
 
 // Exchange
 pub const SWAP1: u8 = 0x90;

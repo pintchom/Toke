@@ -18,6 +18,7 @@ pub fn emit_dispatcher(emitter: &mut Emitter, _contract: &ContractNode) {
     // Compare against each known selector and jump if matched.
     emit_selector_check(emitter, "totalSupply()", "totalSupply");
     emit_selector_check(emitter, "balanceOf(address)", "balanceOf");
+    emit_selector_check(emitter, "transfer(address,uint256)", "transfer");
 
     // Fallback: no selector matched → revert
     emitter.emit(opcodes::PUSH1);

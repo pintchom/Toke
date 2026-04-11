@@ -11,9 +11,9 @@ struct PendingJump {
     width: usize, // unused for now since wehandle static 2 byte offsets
 }
 
-/// Pass 1: emit bytecode with placeholder zeros for jump targets, recording
+/// 1: emit bytecode with placeholder zeros for jump targets, recording
 ///          each label's byte offset and each pending jump's location.
-/// Pass 2: `resolve()` patches every placeholder with the real offset.
+/// 2: `resolve()` patches every placeholder with the real offset.
 pub struct Emitter {
     code: Vec<u8>,
     labels: HashMap<String, usize>,
