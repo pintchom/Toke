@@ -53,6 +53,7 @@ pub const DUP2: u8 = 0x81;
 pub const DUP3: u8 = 0x82;
 pub const DUP4: u8 = 0x83;
 pub const DUP5: u8 = 0x84;
+pub const DUP6: u8 = 0x85;
 
 // Exchange
 pub const SWAP1: u8 = 0x90;
