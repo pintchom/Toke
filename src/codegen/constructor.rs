@@ -1,7 +1,7 @@
 use crate::ast::ContractNode;
 
 use super::opcodes;
-use super::utils::push_u64;
+use super::utils::{event_topic, push_u64, push_value};
 
 /// Emit constructor (deployment init) bytecode.
 ///
@@ -60,6 +60,26 @@ pub fn emit_constructor(contract: &ContractNode, runtime_len: usize) -> Vec<u8> 
     push_u64(&mut code, supply);
     code.push(opcodes::SWAP1);
     code.push(opcodes::SSTORE);
+
+    // --- Emit Transfer(address(0), msg.sender, supply) event ---
+    // Store supply in memory[0x00] as the event data (non-indexed)
+    push_u64(&mut code, supply);
+    code.push(opcodes::PUSH1);
+    code.push(0x00);
+    code.push(opcodes::MSTORE);
+
+    // LOG3(offset, size, topic0, topic1=from, topic2=to)
+    // Push in reverse stack order: topic2, topic1, topic0, size, offset
+    code.push(opcodes::CALLER); // topic2 = to = deployer
+    code.push(opcodes::PUSH1);
+    code.push(0x00); // topic1 = from = address(0)
+    let transfer_topic = event_topic("Transfer(address,address,uint256)");
+    push_value(&mut code, &transfer_topic); // topic0 = event signature
+    code.push(opcodes::PUSH1);
+    code.push(0x20); // size = 32 bytes
+    code.push(opcodes::PUSH1);
+    code.push(0x00); // offset = 0
+    code.push(opcodes::LOG3);
 
     // copy runtime output into memory
     // CODECOPY(destOffset, offset, size)

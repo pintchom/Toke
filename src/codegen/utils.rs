@@ -13,6 +13,10 @@ pub fn selector(signature: &str) -> [u8; 4] {
     hash[..4].try_into().unwrap()
 }
 
+pub fn event_topic(signature: &str) -> [u8; 32] {
+    keccak256(signature.as_bytes())
+}
+
 pub fn push_value(code: &mut Vec<u8>, value: &[u8]) {
     let n = value.len();
     assert!(
