@@ -16,9 +16,15 @@ pub fn emit_dispatcher(emitter: &mut Emitter, _contract: &ContractNode) {
     emitter.emit(opcodes::SHR);
 
     // Compare against each known selector and jump if matched.
+    emit_selector_check(emitter, "name()", "name");
+    emit_selector_check(emitter, "symbol()", "symbol");
+    emit_selector_check(emitter, "decimals()", "decimals");
     emit_selector_check(emitter, "totalSupply()", "totalSupply");
     emit_selector_check(emitter, "balanceOf(address)", "balanceOf");
     emit_selector_check(emitter, "transfer(address,uint256)", "transfer");
+    emit_selector_check(emitter, "approve(address,uint256)", "approve");
+    emit_selector_check(emitter, "allowance(address,address)", "allowance");
+    emit_selector_check(emitter, "transferFrom(address,address,uint256)", "transferFrom");
 
     // Fallback: no selector matched → revert
     emitter.emit(opcodes::PUSH1);
