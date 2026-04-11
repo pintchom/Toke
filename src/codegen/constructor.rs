@@ -20,6 +20,7 @@ pub fn emit_constructor(contract: &ContractNode, runtime_len: usize) -> Vec<u8> 
         .expect("supply validated by analyzer")
         .value;
 
+    // start with recording total supply
     // Stack: [supply, 0] → SSTORE
     // pushing total supply value and slot 0 onto the stack, then SSTORE it
     // post reployment, anyone calling totalSupply() reads this slot
@@ -28,6 +29,7 @@ pub fn emit_constructor(contract: &ContractNode, runtime_len: usize) -> Vec<u8> 
     code.push(0x00);
     code.push(opcodes::SSTORE);
 
+    // then give tokens to the deployer
     // The mapping slot is keccak256(abi.encode(address, base_slot)).
     // base_slot for balanceOf is 5.
     //
@@ -59,6 +61,7 @@ pub fn emit_constructor(contract: &ContractNode, runtime_len: usize) -> Vec<u8> 
     code.push(opcodes::SWAP1);
     code.push(opcodes::SSTORE);
 
+    // copy runtime output into memory
     // CODECOPY(destOffset, offset, size)
     //   destOffset = 0x00 (write to start of memory)
     //   offset     = constructor_len (runtime starts right after constructor)
@@ -68,7 +71,7 @@ pub fn emit_constructor(contract: &ContractNode, runtime_len: usize) -> Vec<u8> 
     // we finish emitting, including these CODECOPY + RETURN instructions.
     // So we emit a placeholder and patch it below.
     push_u64(&mut code, runtime_len as u64); // size
-    code.push(opcodes::PUSH2);
+    code.push(opcodes::PUSH2); // this is a placeholder thats patched later, so we dont optimistically set incorrect offset 
     let offset_patch_pos = code.len();
     code.push(0x00); // placeholder for constructor_len (high byte)
     code.push(0x00); // placeholder for constructor_len (low byte)
