@@ -25,8 +25,8 @@ Source (.tc) → Lexer → Parser → Semantic Analyzer → Code Generator → B
 - [x] Lexer — tokenizes `.tc` source files
 - [x] Parser — builds AST from token stream
 - [x] Semantic Analyzer — validates contract logic
-- [ ] Code Generator — emits EVM bytecode
-- [ ] CLI — `toke build`, `toke lint`, `toke init`
+- [x] Code Generator — emits EVM bytecode
+- [x] CLI — `toke build`, `toke lint`, `toke init`
 
 ## Run
 
