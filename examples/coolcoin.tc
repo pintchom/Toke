@@ -1,0 +1,7 @@
+contract CoolCoin {
+    symbol "COOL"
+    decimals 18
+    supply 5000000
+    mintable
+    capped 10000000
+}
