@@ -47,7 +47,9 @@ contract MyToken {
     assert!(matches!(tokens[11].token_type, LexTokenType::Capped));
     assert!(matches!(tokens[12].token_type, LexTokenType::IntegerLit(ref s) if s == "5000000"));
     assert!(matches!(tokens[13].token_type, LexTokenType::Owner));
-    assert!(matches!(tokens[14].token_type, LexTokenType::AddressLit { ref raw, .. } if raw == "0x1234567890abcdef1234567890abcdef12345678"));
+    assert!(
+        matches!(tokens[14].token_type, LexTokenType::AddressLit { ref raw, .. } if raw == "0x1234567890abcdef1234567890abcdef12345678")
+    );
     assert!(matches!(tokens[15].token_type, LexTokenType::CloseBrace));
     assert!(matches!(tokens[16].token_type, LexTokenType::EOF));
 }

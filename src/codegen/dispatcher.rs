@@ -24,7 +24,11 @@ pub fn emit_dispatcher(emitter: &mut Emitter, _contract: &ContractNode) {
     emit_selector_check(emitter, "transfer(address,uint256)", "transfer");
     emit_selector_check(emitter, "approve(address,uint256)", "approve");
     emit_selector_check(emitter, "allowance(address,address)", "allowance");
-    emit_selector_check(emitter, "transferFrom(address,address,uint256)", "transferFrom");
+    emit_selector_check(
+        emitter,
+        "transferFrom(address,address,uint256)",
+        "transferFrom",
+    );
 
     // Fallback: no selector matched → revert
     emitter.emit(opcodes::PUSH1);

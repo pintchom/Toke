@@ -1,4 +1,4 @@
-use crate::errors::{get_source_line, CompileError};
+use crate::errors::{CompileError, get_source_line};
 use crate::lex_tokens::{LexToken, LexTokenType};
 
 pub struct Lexer {
@@ -39,9 +39,7 @@ impl Lexer {
                     lex_tokens.push(self.read_address()?)
                 }
                 c if c.is_ascii_digit() => lex_tokens.push(self.read_number()?),
-                c if c.is_ascii_alphabetic() || c == '_' => {
-                    lex_tokens.push(self.read_code_word()?)
-                }
+                c if c.is_ascii_alphabetic() || c == '_' => lex_tokens.push(self.read_code_word()?),
                 _ => {
                     return Err(CompileError::lexer(
                         format!("Unexpected character '{}'", c),
@@ -218,10 +216,7 @@ impl Lexer {
 
         if hex_str.len() != 40 {
             return Err(CompileError::lexer(
-                format!(
-                    "Address must be 40 hex characters (got {})",
-                    hex_str.len()
-                ),
+                format!("Address must be 40 hex characters (got {})", hex_str.len()),
                 start_line,
                 start_col,
                 self.source_line(start_line),

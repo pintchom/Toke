@@ -1,4 +1,5 @@
 use clap::Parser;
+use dialoguer::{Confirm, Input};
 use toke::cli::{Args, Commands};
 
 fn main() {
@@ -125,7 +126,126 @@ fn main() {
         }
 
         Commands::Init => {
-            println!("toke init wizard not yet implemented.");
+            println!("\nWelcome to Toke\n");
+
+            let name: String = Input::new()
+                .with_prompt("Contract name")
+                .validate_with(|input: &String| {
+                    if input.is_empty() {
+                        return Err("Contract name cannot be empty");
+                    }
+                    if !input
+                        .chars()
+                        .next()
+                        .map(|c| c.is_alphabetic())
+                        .unwrap_or(false)
+                    {
+                        return Err("Must start with a letter");
+                    }
+                    if !input.chars().all(|c| c.is_alphanumeric() || c == '_') {
+                        return Err("Only letters, numbers, and underscores allowed");
+                    }
+                    Ok(())
+                })
+                .interact_text()
+                .unwrap();
+
+            let default_symbol = name.chars().take(3).collect::<String>().to_uppercase();
+            let symbol: String = Input::new()
+                .with_prompt(format!("Token symbol (default: {})", default_symbol))
+                .default(default_symbol)
+                .interact_text()
+                .unwrap();
+
+            let decimals: u64 = Input::new()
+                .with_prompt("Decimals (default: 18)")
+                .default(18u64)
+                .validate_with(|input: &u64| {
+                    // mirrors check_decimals_range in analyzer.rs
+                    if *input <= 77 {
+                        Ok(())
+                    } else {
+                        Err("Decimals must be between 0 and 77")
+                    }
+                })
+                .interact_text()
+                .unwrap();
+
+            let supply: u64 = Input::new()
+                .with_prompt("Total supply")
+                .validate_with(|input: &u64| {
+                    // mirrors check_supply in analyzer.rs
+                    if *input > 0 {
+                        Ok(())
+                    } else {
+                        Err("Supply must be greater than 0")
+                    }
+                })
+                .interact_text()
+                .unwrap();
+
+            let mintable = Confirm::new()
+                .with_prompt("Mintable?")
+                .default(false)
+                .interact()
+                .unwrap();
+
+            let capped: Option<u64> = if mintable {
+                let want_cap = Confirm::new()
+                    .with_prompt("Add a supply cap?")
+                    .default(false)
+                    .interact()
+                    .unwrap();
+                if want_cap {
+                    Some(
+                        Input::new()
+                            .with_prompt("Max supply cap")
+                            .validate_with(|input: &u64| {
+                                // mirrors check_capped_gte_supply in analyzer.rs
+                                if *input >= supply {
+                                    Ok(())
+                                } else {
+                                    Err("Cap must be greater than or equal to supply")
+                                }
+                            })
+                            .interact_text()
+                            .unwrap(),
+                    )
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+
+            let burnable = Confirm::new()
+                .with_prompt("Burnable?")
+                .default(false)
+                .interact()
+                .unwrap();
+
+            // Build the .tc source
+            let mut out = format!("contract {} {{\n", name);
+            out += &format!("    symbol \"{}\"\n", symbol);
+            out += &format!("    decimals {}\n", decimals);
+            out += &format!("    supply {}\n", supply);
+            if mintable {
+                out += "    mintable\n";
+            }
+            if burnable {
+                out += "    burnable\n";
+            }
+            if let Some(cap) = capped {
+                out += &format!("    capped {}\n", cap);
+            }
+            out += "}\n";
+
+            let filename = format!("{}.tc", name.to_lowercase());
+            std::fs::write(&filename, &out).expect("failed to write .tc file");
+
+            println!("\nGenerated {}\n", filename);
+            println!("{}", out);
+            println!("Run 'toke build {}' to compile.", filename);
         }
     }
 }

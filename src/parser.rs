@@ -1,5 +1,5 @@
 use crate::ast::{AddressField, ContractNode, FlagField, IntField, Position, StringField};
-use crate::errors::{get_source_line, suggest_closest, CompileError};
+use crate::errors::{CompileError, get_source_line, suggest_closest};
 use crate::lex_tokens::{LexToken, LexTokenType};
 
 pub struct Parser {
@@ -105,10 +105,7 @@ impl Parser {
                         }
                         other => {
                             return Err(CompileError::parse(
-                                format!(
-                                    "'symbol' expects a string, got {}",
-                                    describe_token(other)
-                                ),
+                                format!("'symbol' expects a string, got {}", describe_token(other)),
                                 self.current().line,
                                 self.current().col,
                                 self.source_line(self.current().line),
@@ -219,10 +216,7 @@ impl Parser {
                         }
                         other => {
                             return Err(CompileError::parse(
-                                format!(
-                                    "'capped' expects a number, got {}",
-                                    describe_token(other)
-                                ),
+                                format!("'capped' expects a number, got {}", describe_token(other)),
                                 self.current().line,
                                 self.current().col,
                                 self.source_line(self.current().line),
@@ -273,12 +267,14 @@ impl Parser {
                         self.current().col,
                         self.source_line(self.current().line),
                     );
-                    return Err(match suggest_closest(&word, LexTokenType::FIELD_KEYWORDS, 3) {
-                        Some(suggestion) => {
-                            err.with_suggestion(format!("Did you mean '{}'?", suggestion))
-                        }
-                        None => err,
-                    });
+                    return Err(
+                        match suggest_closest(&word, LexTokenType::FIELD_KEYWORDS, 3) {
+                            Some(suggestion) => {
+                                err.with_suggestion(format!("Did you mean '{}'?", suggestion))
+                            }
+                            None => err,
+                        },
+                    );
                 }
                 LexTokenType::EOF => {
                     return Err(CompileError::parse(

@@ -1,4 +1,4 @@
-use toke::errors::{get_source_line, suggest_closest, CompileError, ErrorKind};
+use toke::errors::{CompileError, ErrorKind, get_source_line, suggest_closest};
 
 // --- suggest_closest (fuzzy matching) ---
 

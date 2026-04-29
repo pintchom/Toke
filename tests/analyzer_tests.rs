@@ -88,7 +88,12 @@ mod tests {
             ..base_contract()
         };
         let result = analyze(&contract, "");
-        assert!(result.errors.iter().all(|e| !e.message.contains("decimals")));
+        assert!(
+            result
+                .errors
+                .iter()
+                .all(|e| !e.message.contains("decimals"))
+        );
     }
 
     #[test]
@@ -98,7 +103,12 @@ mod tests {
             ..base_contract()
         };
         let result = analyze(&contract, "");
-        assert!(result.errors.iter().all(|e| !e.message.contains("decimals")));
+        assert!(
+            result
+                .errors
+                .iter()
+                .all(|e| !e.message.contains("decimals"))
+        );
     }
 
     #[test]
@@ -132,13 +142,23 @@ mod tests {
             ..base_contract()
         };
         let result = analyze(&contract, "");
-        assert!(result.errors.iter().all(|e| !e.message.contains("mintable")));
+        assert!(
+            result
+                .errors
+                .iter()
+                .all(|e| !e.message.contains("mintable"))
+        );
     }
 
     #[test]
     fn test_no_capped_no_mintable_ok() {
         let result = analyze(&base_contract(), "");
-        assert!(result.errors.iter().all(|e| !e.message.contains("mintable")));
+        assert!(
+            result
+                .errors
+                .iter()
+                .all(|e| !e.message.contains("mintable"))
+        );
     }
 
     // --- check_capped_gte_supply ---
@@ -188,13 +208,23 @@ mod tests {
             ..base_contract()
         };
         let result = analyze(&contract, "");
-        assert!(result.warnings.iter().any(|w| w.message.contains("Decimals")));
+        assert!(
+            result
+                .warnings
+                .iter()
+                .any(|w| w.message.contains("Decimals"))
+        );
     }
 
     #[test]
     fn test_decimals_18_no_warning() {
         let result = analyze(&base_contract(), "");
-        assert!(result.warnings.iter().all(|w| !w.message.contains("decimals")));
+        assert!(
+            result
+                .warnings
+                .iter()
+                .all(|w| !w.message.contains("decimals"))
+        );
     }
 
     #[test]
@@ -204,7 +234,12 @@ mod tests {
             ..base_contract()
         };
         let result = analyze(&contract, "");
-        assert!(result.warnings.iter().all(|w| !w.message.contains("decimals")));
+        assert!(
+            result
+                .warnings
+                .iter()
+                .all(|w| !w.message.contains("decimals"))
+        );
     }
 
     // --- check_symbol_length ---
@@ -226,7 +261,12 @@ mod tests {
             ..base_contract()
         };
         let result = analyze(&contract, "");
-        assert!(result.warnings.iter().all(|w| !w.message.contains("symbol")));
+        assert!(
+            result
+                .warnings
+                .iter()
+                .all(|w| !w.message.contains("symbol"))
+        );
     }
 
     #[test]
@@ -236,7 +276,12 @@ mod tests {
             ..base_contract()
         };
         let result = analyze(&contract, "");
-        assert!(result.warnings.iter().all(|w| !w.message.contains("symbol")));
+        assert!(
+            result
+                .warnings
+                .iter()
+                .all(|w| !w.message.contains("symbol"))
+        );
     }
 
     // --- error kinds ---

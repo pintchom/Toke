@@ -11,7 +11,7 @@ pub enum LexTokenType {
 
     Identifier(String), // identifier assignments: MyToken
     StringLit(String),  // string assignments: "asd"
-    IntegerLit(String), 
+    IntegerLit(String),
     AddressLit { bytes: [u8; 20], raw: String },
 
     OpenBrace,

@@ -1,5 +1,5 @@
 use crate::ast::ContractNode;
-use crate::errors::{get_source_line, CompileError};
+use crate::errors::{CompileError, get_source_line};
 
 pub struct AnalyzerResult {
     pub errors: Vec<CompileError>,
@@ -67,11 +67,7 @@ fn check_capped_requires_mintable(
     }
 }
 
-fn check_capped_gte_supply(
-    contract: &ContractNode,
-    source: &str,
-    errors: &mut Vec<CompileError>,
-) {
+fn check_capped_gte_supply(contract: &ContractNode, source: &str, errors: &mut Vec<CompileError>) {
     if let (Some(capped), Some(supply)) = (&contract.capped, &contract.supply) {
         if capped.value < supply.value {
             errors.push(CompileError::semantic(
@@ -87,11 +83,7 @@ fn check_capped_gte_supply(
     }
 }
 
-fn check_decimals_unusual(
-    contract: &ContractNode,
-    source: &str,
-    warnings: &mut Vec<CompileError>,
-) {
+fn check_decimals_unusual(contract: &ContractNode, source: &str, warnings: &mut Vec<CompileError>) {
     if let Some(field) = &contract.decimals {
         if field.value != 18 {
             warnings.push(CompileError::warning(
